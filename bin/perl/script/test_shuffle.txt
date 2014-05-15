@@ -1,0 +1,72 @@
+#!/bin/perl -w
+
+
+use strict;
+use warnings;
+
+use Bio::SeqIO;
+my $seqio = Bio::SeqIO->new(-file => "genome.fa", '-format' => 'Fasta');
+
+my %h_genome= ();
+while(my $seq = $seqio->next_seq) {
+        my $seqid=$seq->id;
+        $h_genome{$seqid}->{'length'} = $seq->length;
+        $h_genome{$seqid}->{'sequence'} = $seq->seq();
+
+}
+#######################################
+
+
+my %h_gene;
+foreach my $line  (@lines){
+        chomp $line;
+        if ($line =~ /^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+gene_id "(\S+)"; transcript_id "(\S+)"; (\w.*)$/ ||
+        $line =~ /^(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+gene_id "(\S+)"; transcript_id "(\S+)";$/){
+                my $chr         =   $1;
+                my $biotype             =   $2;
+                my $level               =   $3;
+                my $beg_feat    =   $4;
+                my $end_feat    =   $5;
+                my $strand      =   $7;
+                my $gene_id             =   $9;
+
+                $h_gene{$gene_id}->{"chr"}                      =   $chr;
+                $h_gene{$gene_id}->{"biotype"}          =   $biotype;
+                $h_gene{$gene_id}->{"startg"}           =   Utils::min2($h_gene{$transcript}->{"startg"}, $beg_feat);
+                $h_gene{$gene_id}->{"endg"}             =   Utils::max2($h_gene{$transcript}->{"endg"}, $end_feat);
+
+                $h_chr{$chr}{$gene_id}->{"startg"};
+
+        }
+}
+
+# Sort genes from starg
+for my $g (keys %h_gene) {
+            $h_gene{$g} = sort { $a->{"startg"} <=> $b->{"startg"}} %h_gene{$g};
+}
+
+
+################################
+@size_dist;
+
+foreach my $size(@size_dist){
+
+        set $random_chr in $h_genome{$seqid};
+        $size_chr= $h_genome{$random_chr}->{'length'};
+
+        set $random_start de 0 à $h_genome{$random_chr}->{'length'};
+
+        $random_end= $random_start + $size;
+
+        #foreach my $gene (keys(%h_gene)){
+                next if (chr different);
+
+        foreach my $gene (keys($h_chr{$random_chr})){
+
+                if (foverlap ){
+                        redo random
+                }
+
+        }
+
+}

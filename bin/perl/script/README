@@ -1,0 +1,165 @@
+README of PipCPAT.pl
+
+COMMANDE of PipCPAT :
+PipCPAT.pl -c "fasta file of coding gene" -nc "fasta file of non coding gene" -t "fasta file of RNA sequence test" -o "name of output file"
+
+IN PipCPAT we have :
+	make_hexamer_tab.py -c "fasta file of coding gene" -nc "fasta file of non coding gene" > "name of output file"
+	make_logitModel.py -x "hexamer table" -c "fasta file of coding sequence rna" -n "fasta file of non coding sequence rna" -o "name of output file"
+	cpat.py -d "ouput_logitModel.RData" -x "hexamer table" -g "fasta file test" -o "name of output file"
+	Rcpat.r "result of cpat"
+
+cpat give us a score of probabli for a sequence to be coding. 
+Rcpat make calcul of median, ... and a dotplot. 
+
+NON CODING GENE :  
+we are two situations :
+	- we have the file so we do the command line
+	- we haven't this file so we do a shuflle of the File of coding gene and we take this file :
+		Command : shuffle_fasta.pl "fasta that we want to shuffle" 1 > "file name"
+
+SHUFFLE :
+We have :
+	- 1 coding file
+	- 1 non coding gene file
+
+To know if the shuffle technique is correct we divide these file in 5 with coding and non coding gene.
+
+After run CPAT :
+	- add a colonne name Label with a 1 for coding or 0 for non coding  
+
+Split one file in n file:
+	- use of split_fastav2.pl : split_fastav2.pl -i Human_ORF.fa -p ORF -n 2 
+
+CPATverifV1:
+	- replace the column of prob by :
+		- 1 if it's a coding gene (in Human_ORF.fa)
+		- 0 if it's a non coding gene (in NONCODE.fa)
+	-command : 
+		CPATverif.pl Human_ORF.fa NONCODE.fa cpat.out cpatverif.out
+
+R script :
+we use the script Human_10folds... on the cpatverif.outto make some curve :
+	- Accuracy: ACC = (TP+TN)/(P+N)  
+	- Performance:  
+	- Specificity: SPC = TN/N = TN/(FP+TN)
+	- Sensibility: TPR = TP/P = (TP/(TP+FN)
+and we determine the cutoff. (0,53-0,59)
+
+Determinate if it's correct:
+	We take the cpat.out and we run CPATverif2.pl to add a column of label after the column of prob.
+		CPATverif.pl Human_ORF.fa NONCODE.fa cpat.out cpatverif2.out
+	we do a awk to known the VT (True positif) and FT (False positive) :
+		- awk 'NR>1 && $NF ==1{i++; if ($(NF-1) > 0.53){cpt++}}END{print cpt/i}' cpatverif2.out
+			result : 0.998332 % of Sensibility to determinate if a gene has a coding potential
+		- awk 'NR>1 && $NF ==0{i++; if ($(NF-1) < 0.53){cpt++}}END{print cpt/i}' cpatverif2.out
+			result : 0.9131 % of Sensibility to determinate if a gene has not a coding potential
+		
+In the file of origine we have:
+	- 0,988193 : non codant
+	- 0,998554 : codant
+
+Modification of the file test:
+	Before we had a file with more coding gene than non coding gene. Then we try the
+	manipulation with a file test with same coding gene than non coding gene.
+	Result :
+		- Sensibility: 
+			+ ~0.55 for VP Coding gene
+			+ ~0.85 for VP Non Coding gene
+		- cutoffs :
+			+ ~0.40 for Accuracy
+			+ ~0.36 for intersection between sensibility and specificity
+			
+Comparaison between result of Humain_train.dat and our result:
+	- calcule of the coding prob of Humain.dat:
+		+ regroupe tous les tableau: 
+			rbind(test1,test2,test3,test4,test5,test6,test7,test8,test9,test10)
+
+Cut sequences : (Table_seqsize.pl)
+	To have a better sensibility we divide sequence by n. We observe a better sensibility 
+	but the specificity decrease like the accuracy. 
+	I try some division : 
+		1,2,5,10,15,20,25.
+	There is a jump between 2 and 5 : the sensibility pass to 0,6 at 0,8.
+
+R for cut: (fitting_2distrib.r)
+For not cut random we going to experiment if the length of lncRNA is conserved we do a R script to know the distribution. 
+	We use 3 files that contains 1 column of ID and another of sequence size  :
+		- 1 file of mRNA know
+		- 1 file of mRNA observed
+		- 1 file of lncRNA know
+	With these files  we try to predict the size distribution of the lncRNA observed.
+	there is 5 steps:
+		- Comparaison of the size distribution between these 3 files.
+		- execution of a ks test that let to know if two distribution follow the same law
+		- Know if the distributions of lncRNA or mRNA size know or observed follow a normal law.
+		- Calcule of the mean and the variance of the normal law for Bprime
+		- Calcule of the mean size of Bprime
+ 
+Change the PipCPAT to use the R script:
+ 	- We use the mean and the variance of the Bprime predict to have some random size.
+ 	- regroup of all sequence in one 
+ 	- shuffle the sequence obtain 
+ 	- with the list of size give by R we extract the same numbers of seq of the coding file sequences and put in a new file in fasta format.
+
+Analyse with list of size give by R:
+	- the results are not constant, we can observe variations in 
+		+ Specificity (0.75~0.85) 
+		+ Sensibility (0.632~0.87325) 
+	- the cuttof-accuracy have a great variability too.
+	
+With R we have a values of accuracy and performance i try to adapt the pipeline to take care of this informations.  
+	
+INTERGENIC:
+For this part we will use the intergenic regions of the genome. The regions between gene, but not introns.
+To do that we will use BedTools which let to know these regions with the module BedComplement.
+
+Structure of a bed file: 
+	3 obligatory position 
+		1- chromosome name
+		2- the start position in the chromosome
+		3- the end position in the chromosome
+	9 additional BED fields:
+		4- name of the bed line
+		5- score
+		6- strand (+/-)
+		7- thickStart
+		8- thickEnd
+		9- itemRGB (color)
+		10- blockCount : number of exons in the Bed line
+		11- blockSizes : A comma-separated list of the block sizes
+		12- blockStart: A comma-separated list of block starts
+
+ComplementBed:
+	Usage: $ complementBed [OPTIONS] -i <BED/GFF/VCF> -g <GENOME>
+
+In the first step we need to extract sequence of transcript:
+	We have two solution:
+		- parse the gtf file of annotation: /omaha-beach/anicaise/DATA/gencv17/gencode.v17.annotation.gtf
+		and extract sequence of the file : /omaha-beach/tderrien/DATA/hg19/sequence/softmasked/Homo_sapiens.GRCh37.72.dna_sm.primary_assembly.fa
+		with:
+		time gtf2intergenic.pl  -i ../../DATA/gencv17/gencode.v17.annotation.gtf -f /omaha-beach/tderrien/DATA/hg19/sequence/softmasked/Homo_sapiens.GRCh37.72.dna_sm.primary_assembly.fa -o sequence -v 10
+		test with 500k lines: 5min
+		
+		- the second solution is to extract the sequences using gffreader. He need the file of:
+			+ specific gff like for lncrna or mRNA : 
+			+ the sequence file : the same
+			gffread2gtf.sh test.gtf -g /omaha-beach/tderrien/DATA/hg19/sequence/softmasked/Homo_sapiens.GRCh37.72.dna_sm.primary_assembly.fa -w test.fa
+			test with 500k lines: 30s
+
+We try cpat on the file of sequence.fa of intergenic (lincRNA and antisense):
+	- bad result when we use this file for the training:
+		+ sensibility of 2
+	- good result when we use NONCODE and Human_ORF.fa
+		PipCPATV4.2.pl -c ../Human_ORF.fa -nc ../NONCODE.fa -t ../seq_test1.fa  -o testORF_NONCODE -s ../NONCODE.fa
+
+
+PROBLEMS:
+Problem with the file test:
+	In the first version the file of test don't have the same sequence of files where we extract these. I have several hypothesis:
+		- first: i do a bad manipulations and i do a shuffle 
+		- second: i take utr but how ???? i haven't them
+	I extract a second time these sequence with the module separate:
+		-> "separate_fastav2.pl -c Human_ORF.fa -nc NONCODE.fa -s 8000"
+		I put 8k of both coding and non coding rna in this file of group.fa, then i have 16k sequences.
+	I run a second time cpat on this file test and the result is better : more 90% for both of Intergenic and shuffle
